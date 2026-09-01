@@ -13,8 +13,12 @@ export const mastra = new Mastra({
   agents: { circlePaymentAgent },
   storage: new LibSQLStore({
     id: 'mastra-storage',
-    // stores observability, scores, ... into memory storage, if it needs to persist, change to file:../mastra.db
-    url: ':memory:',
+    ...(process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN
+      ? {
+          url: process.env.TURSO_DATABASE_URL,
+          authToken: process.env.TURSO_AUTH_TOKEN,
+        }
+      : { url: ':memory:' }),
   }),
   logger: new PinoLogger({
     name: 'Mastra',
