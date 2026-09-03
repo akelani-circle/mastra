@@ -60,6 +60,51 @@ The other two files are stopgaps, each with its reason at the top and an expiry 
 
 The real ceiling is not `approval.ts`. Set per-transaction, daily, weekly, and monthly caps on the wallet itself with `circle wallet limit set` and they hold no matter what the agent is persuaded to do — that one is yours to run, since it confirms by one-time code. Keep the wallet funded with what you would not mind losing. The same wallet can also list a service of your own on the marketplace and collect per call; ask the agent about it and it will read Circle's `accept-agent-payments` skill.
 
+## One caller, one workspace
+
+Every request names the caller it belongs to, in the `user-id` it sends in
+`requestContext`, and that name is the only thing that decides which home
+directory the shell opens in — its own CLI config, its own login, its own files.
+A request that names nobody is refused rather than pooled somewhere shared.
+
+There is no setting for this and no way to turn it off. The alternative is one
+home directory and one logged-in session for everyone who can reach the URL,
+which means the first visitor's wallet pays for the rest; a switch for that is a
+switch for handing a stranger your money, so there isn't one. Homes live under
+`~/.circle-agent/tenants/<user-id>` (`/tmp` if that is not writable, as in some
+containers) and survive a restart. See `src/mastra/tenancy.ts`.
+
+One caller cannot name itself. Mastra Studio is a console for whatever agent it
+is pointed at rather than a front end with users of its own, so it sends no
+`user-id` and every request it makes would be refused — the agent listed and
+unusable. `src/mastra/studio.ts` names it `studio` in middleware, and only when
+a request carrying no id arrives from Studio's own page: the deployment's
+`*.studio.mastra.cloud` subdomain, or the Studio this server hosts itself. A
+request that already names a caller is untouched, and everything else is refused
+exactly as before. `Origin` is a header the caller writes, so this is a
+convenience and not a boundary — cap the wallet with `circle wallet limit set`
+on anything strangers can reach.
+
+That caller also signs in differently. It has no terminal to paste a command
+into and no proxy in front of it calling the control plane, so it gets two tools
+instead: one that puts Circle's Terms to you as an approval, and one that takes
+your email, has Circle send the code, and suspends for you to type it — the same
+pause Studio already shows before a spend. Neither is something the agent can
+finish alone, and the code goes from the resume payload to the CLI without
+entering the model's context or the thread. Every other caller signs in through
+the front end calling `/circle/*`. See `src/mastra/login-tool.ts`.
+
+The cost is local convenience. The agent does not see the Circle session in your
+own `~/.circle-cli`, because that is not the home it opens — so you log in once
+per username, and the agent hands you the command with the right `HOME=` prefix
+when it needs you to. Logging in without that prefix writes to your own home,
+where the agent will never find it.
+
+This is one half of a pair. Nothing here checks that a caller is who it says it
+is, so put something in front that authenticates and sets the id. Without that,
+`user-id` is a field anyone can type, and picking someone else's is all it takes
+to reach their wallet.
+
 ## About Mastra templates
 
 [Mastra templates](https://mastra.ai/templates) are ready-to-use projects that show off what you can build — clone one, poke around, and make it yours. They live in the [Mastra monorepo](https://github.com/mastra-ai/mastra) and are automatically synced to standalone repositories for easier cloning.
