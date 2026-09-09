@@ -1,0 +1,5 @@
+# mastra build bundles with esbuild, whose install step compiles a native binary.
+# pnpm blocks unapproved build scripts and exits non-zero, which stops `pnpm dev`
+# and `pnpm build` before they start. npm and yarn ignore this file.
+allowBuilds:
+  esbuild: true
