@@ -1,13 +1,6 @@
-// Circle's skills install by cloning a git repository, and a deployed image may have no git.
-//
-// `npx skills add circlefin/skills -g` — the universal fallback Circle's setup document publishes —
-// spawns `git` and dies with ENOENT, and `circle skill install` shells out to the same command. The
-// failure is quiet: the setup document says to carry on to the login step, so setup appears to
-// finish while the skills directory was never written, and the bootstrap line returns on every
-// request forever.
-//
-// So the install is done here instead, from the tarball GitHub serves for the same commit the clone
-// would have fetched. With git on the machine — every laptop — this file does nothing.
+// Circle's skills install by cloning a git repository, and a deployed image may have no git — the
+// clone then fails quietly, setup looks finished, and the skills directory was never written.
+// Installs from GitHub's tarball instead. With git on the machine, this file does nothing.
 
 import { execFile } from 'node:child_process';
 import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises';
@@ -16,18 +9,18 @@ import { promisify } from 'node:util';
 
 const run = promisify(execFile);
 
-/** The archive of the tree `git clone` would have produced. `HEAD` so the branch can be renamed. */
+/** `HEAD` so the branch can be renamed without breaking this. */
 const TARBALL = 'https://codeload.github.com/circlefin/skills/tar.gz/HEAD';
 
-/** Where the skills sit inside that archive, below the one top-level directory GitHub adds. */
+/** Below the one top-level directory GitHub adds. */
 const SKILLS_PATH = ['plugins', 'circle', 'skills'];
 
-/** Comfortably larger than the ~850KB Circle publishes, and a stop on a repository that grows. */
+/** Comfortably larger than the ~850KB Circle publishes. */
 const MAX_BYTES = 16 * 1024 * 1024;
 
 const FETCH_TIMEOUT_MS = 60_000;
 
-/** Asked once per process: it is a property of the image and cannot change under a running server. */
+/** Asked once per process: a property of the image, which cannot change under a running server. */
 let gitProbe: Promise<boolean> | undefined;
 
 export function gitAvailable(): Promise<boolean> {
@@ -39,10 +32,7 @@ export function gitAvailable(): Promise<boolean> {
   return gitProbe;
 }
 
-/**
- * Whether a command is trying to install Circle's skills. Both spellings reach the same clone. The
- * `npx` form is matched only for Circle's own repository.
- */
+/** Both spellings reach the same clone; the `npx` form only for Circle's own repository. */
 export function installsCircleSkills(command: string): boolean {
   const single = command.trim();
 
@@ -59,13 +49,7 @@ async function topLevel(staging: string): Promise<string | undefined> {
   return dirs.length === 1 ? dirs[0]!.name : undefined;
 }
 
-/**
- * Install Circle's skills into `destination`, or return nothing so the caller can let the original
- * command run and fail on its own terms.
- *
- * Staged inside the destination's own parent, not `/tmp`: the last step is a rename, and a rename
- * across two filesystems is not a rename at all.
- */
+/** Staged beside the destination, not `/tmp`: the last step is a rename, which needs one filesystem. */
 export async function installCircleSkills(destination: string): Promise<string | undefined> {
   const staging = join(dirname(destination), '.circle-skills-download');
 

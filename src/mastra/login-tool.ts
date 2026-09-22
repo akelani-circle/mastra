@@ -1,14 +1,6 @@
-// Circle sign-in, in the conversation, for the caller with no front end of its own.
-//
-// `approval.ts` blocks `circle terms accept` and `circle wallet login` in the shell, and its advice —
-// paste the command into your own terminal — assumes a shell on the machine the agent runs on. A
-// front end calls `./control-plane` instead. Mastra Studio is neither: no terminal, and no place to
-// put a login form. So the login runs as three tools the agent drives and cannot finish alone.
-//
-// About the code. The template's own rule is that an OTP never passes through the model's context,
-// and here it does, because Studio's chat has no other way to collect one: its suspended-tool UI is
-// read-only, and its only interactive path is approve/decline. What is left of the rule is that the
-// code is single-use and expires in ten minutes. Treat a code typed here as a code spent.
+// Circle sign-in for Studio, which has neither a terminal nor a login form — a front end uses
+// `./control-plane` instead. The OTP does pass through the model's context here, which the rest of
+// the template avoids; Studio offers no other way to collect one. Treat a code typed here as spent.
 
 import { createTool } from '@mastra/core/tools';
 import type { ToolPayloadTransformTargetConfig } from '@mastra/core/tools';
@@ -23,11 +15,7 @@ const TERMS_URL = 'https://www.circle.com/legal/developer-terms';
 /** Either spelling the CLI accepts: six digits, or the full `B1X-123456` with its prefix. */
 const OTP = /^(?:[A-Za-z0-9]{3}-)?\d{6}$/;
 
-/**
- * Accepting Circle's Terms of Use, as an approval rather than a tool call. `requireApproval` is the
- * whole design: the agent can ask, and only the user can answer, which is what keeps Circle's rule
- * intact where a plain tool would break it.
- */
+/** `requireApproval` is the whole design: the agent can ask, and only the user can answer. */
 export const acceptCircleTermsTool = createTool({
   id: 'circle-accept-terms',
   description:
@@ -59,11 +47,7 @@ export const acceptCircleTermsTool = createTool({
   },
 });
 
-/**
- * Asking Circle to send a code — half a login. It hands back the anti-phishing prefix so the user
- * about to read a code out of their inbox can tell whether it is theirs. The request id stays on
- * disk, where `circle-submit-code` finds it.
- */
+/** Half a login. The request id stays on disk, where `circle-submit-code` finds it. */
 export const circleLoginTool = createTool({
   id: 'circle-wallet-login',
   description:
@@ -94,8 +78,7 @@ export const circleLoginTool = createTool({
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
       return { codeSent: false, message: 'That does not look like an email address.' };
     }
-    // A login run before acceptance fails with PERMISSION_DENIED — an error about the Terms wearing
-    // the costume of an error about the wallet.
+    // Without this, an unaccepted Terms surfaces as PERMISSION_DENIED about the wallet.
     if (!(await termsAccepted(home))) {
       return {
         codeSent: false,
@@ -127,23 +110,11 @@ export const circleLoginTool = createTool({
   },
 });
 
-/** What `circle-submit-code` is called with and answers, named so its transform can be typed. */
 type SubmitInput = { otp: string };
 type SubmitOutput = { loggedIn: boolean; email?: string; message?: string };
 
-/**
- * What the code looks like to everything that keeps a copy. The `input` phase is replaced with a
- * mask, so the rendered call and the transcript replayed on later turns carry `******`; `execute`
- * still receives the real one.
- *
- * A reduction and not a fix: the transformed value is stored beside the original, so the code is
- * still on disk. What it buys is that the code stops being replayed into the model's context every
- * turn, and stops being shown in the UI.
- *
- * Every other phase is spelled out because configuring a target opts the whole payload in, and a
- * phase with no transformer is replaced by a placeholder — an omitted line here would blank the
- * tool's result.
- */
+// Masks the code in the UI and the replayed transcript; `execute` still gets the real one, and the
+// original is still stored beside it. Every phase is spelled out because an omitted one is blanked.
 const SUBMIT_PHASES: ToolPayloadTransformTargetConfig<SubmitInput, SubmitOutput> = {
   // The streaming half, which would otherwise spell the code out one token at a time.
   inputDelta: () => '',
@@ -155,10 +126,7 @@ const SUBMIT_PHASES: ToolPayloadTransformTargetConfig<SubmitInput, SubmitOutput>
   resume: ({ resumeData }) => resumeData,
 };
 
-/**
- * Spending the code, and finishing the login. The code is not logged, not echoed back in the result,
- * and not stored here — the only thing that survives is the session the CLI writes.
- */
+/** The code is not logged or echoed back; the only thing that survives is the CLI's session. */
 export const submitCircleCodeTool = createTool({
   id: 'circle-submit-code',
   description:
@@ -211,7 +179,7 @@ export const submitCircleCodeTool = createTool({
   },
 });
 
-/** All three, under the ids the agent's instructions and its shell block name. */
+/** Under the ids the agent's instructions and its shell block name. */
 export const loginTools = {
   'circle-accept-terms': acceptCircleTermsTool,
   'circle-wallet-login': circleLoginTool,

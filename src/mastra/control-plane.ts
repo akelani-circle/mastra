@@ -5,35 +5,19 @@ import { registerApiRoute } from '@mastra/core/server';
 import { circle, pendingLogin, termsAccepted } from './circle-cli';
 import { MissingIdentityError, tenantHomeFor } from './tenancy';
 
-/**
- * The control plane: the two steps of Circle setup the agent is forbidden to take, as plain HTTP so
- * a front end can take them instead.
- *
- * `approval.ts` blocks `circle terms accept` and `circle wallet login` in the sandbox and tells the
- * user to run them in their own terminal, which assumes they have a shell on the machine the agent
- * runs on. Deployed, nobody does. These routes run the same commands in the same tenant directory,
- * on a request carrying a person's decision. The agent cannot call them and the shell gate stands.
- */
+// The two steps of Circle setup the agent is forbidden to take, as plain HTTP so a front end can
+// take them instead. `approval.ts` tells the user to run them in a terminal; deployed, they have none.
 
-/** The header the front end proves itself with. */
 const TOKEN_HEADER = 'x-control-plane-token';
 
-/**
- * An empty allowlist, which is not the same as no CORS config: the server's default is `origin: '*'`
- * and these are the last four routes that should inherit it. The token is what actually stops
- * anyone; this only keeps a page the user happens to have open from becoming a caller.
- */
+/** Not the same as no CORS config: the server's default is `origin: '*'`, which these must not inherit. */
 const NO_BROWSER = { origin: [] as string[] };
 
 type WalletStatus = {
   mainnet?: { email?: unknown; tokenStatus?: unknown; expiresIn?: unknown };
 };
 
-/**
- * Whether the caller is our own front end. Constant-time, because these routes accept Terms of Use
- * and start logins. An unset token fails closed — the alternative is an open control plane on a
- * public URL.
- */
+/** An unset token fails closed: the alternative is an open control plane on a public URL. */
 function authorised(presented: string | undefined): boolean {
   const expected = process.env.CONTROL_PLANE_TOKEN;
 
@@ -45,7 +29,6 @@ function authorised(presented: string | undefined): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** The caller's home, or the reason there isn't one. */
 function homeFor(body: unknown): { home: string } | { error: string } {
   const id = (body as { userId?: unknown } | undefined)?.userId;
 
@@ -87,13 +70,7 @@ const guarded = (
   };
 };
 
-/**
- * Where setup has got to, as a fact about the filesystem rather than about the conversation, so it is
- * still true after a restart or in a second browser.
- *
- * `wallet status` is skipped until the Terms are accepted because the CLI gates every command behind
- * them: run early, it fails with PERMISSION_DENIED and says nothing about the wallet.
- */
+/** `wallet status` waits on the Terms: run early it fails with PERMISSION_DENIED and says nothing. */
 const statusRoute = registerApiRoute('/circle/status', {
   method: 'POST',
   cors: NO_BROWSER,
@@ -126,10 +103,7 @@ const statusRoute = registerApiRoute('/circle/status', {
   }),
 });
 
-/**
- * Records the acceptance a person just made. The route does not decide anything — that is the whole
- * distinction between this and the agent doing it — and it refuses to write one down twice.
- */
+/** Records a decision a person made; the route does not make one. */
 const acceptTermsRoute = registerApiRoute('/circle/terms/accept', {
   method: 'POST',
   cors: NO_BROWSER,
@@ -148,11 +122,7 @@ const acceptTermsRoute = registerApiRoute('/circle/terms/accept', {
   }),
 });
 
-/**
- * Starts a login: Circle emails a code, and the CLI writes the request that code answers to. The
- * request id stays here — the completing call finds it on disk, so it cannot be replayed from a
- * browser's history.
- */
+/** The request id never leaves the server, so the completing call cannot be replayed from a browser. */
 const initLoginRoute = registerApiRoute('/circle/login/init', {
   method: 'POST',
   cors: NO_BROWSER,
@@ -186,19 +156,14 @@ const initLoginRoute = registerApiRoute('/circle/login/init', {
       body: {
         otpSent: true,
         email,
-        // Circle puts this prefix in the email too. A code whose prefix does not match it is a code
-        // someone else asked for.
+        // Circle puts this prefix in the email: a code that does not carry it is someone else's.
         ...(pending?.otpHead ? { otpHead: pending.otpHead } : {}),
       },
     };
   }),
 });
 
-/**
- * Finishes a login with the code from the user's inbox. The code arrives, is spent, and is not
- * written down: not logged, not echoed back, not stored. The only thing that survives this handler
- * is the session the CLI writes.
- */
+/** The code is spent and not written down; the only thing that survives is the CLI's session. */
 const completeLoginRoute = registerApiRoute('/circle/login/complete', {
   method: 'POST',
   cors: NO_BROWSER,

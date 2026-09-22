@@ -45,9 +45,9 @@ Open [Mastra Studio](http://localhost:4111), select **Circle Payment Agent**, an
 
 ## Demo
 
-<video src="https://github.com/akelani-circle/mastra-circle-payment-agent/raw/main/assets/demo.mp4" controls></video>
+<video src="https://github.com/akelani-circle/mastra/raw/circle-payment-agent/assets/demo.mp4" controls></video>
 
-[Watch the demo](https://github.com/akelani-circle/mastra-circle-payment-agent/raw/main/assets/demo.mp4) — the agent finds a paid service, prices the call, and waits for approval before it spends.
+[Watch the demo](https://github.com/akelani-circle/mastra/raw/circle-payment-agent/assets/demo.mp4) — the agent finds a paid service, prices the call, and waits for approval before it spends.
 
 This demo runs in Mastra Studio, but you can connect this agent to your React, Next.js, or Vue app using the [Mastra Client SDK](https://mastra.ai/docs/server/mastra-client) or agentic UI libraries like [AI SDK UI](https://mastra.ai/guides/build-your-ui/ai-sdk-ui), [CopilotKit](https://mastra.ai/guides/build-your-ui/copilotkit), or [Assistant UI](https://mastra.ai/guides/build-your-ui/assistant-ui).
 
@@ -71,4 +71,4 @@ This is a sample app for demonstration and educational purposes only, and not pr
 
 The agent's instructions and every command it runs come from Circle's [skills](https://github.com/circlefin/skills) and [setup document](https://agents.circle.com/skills/setup.md), fetched and installed at runtime.
 
-Want to contribute? Open an issue or a pull request on [akelani-circle/mastra-circle-payment-agent](https://github.com/akelani-circle/mastra-circle-payment-agent).
+Want to contribute? Open an issue or a pull request on [akelani-circle/mastra](https://github.com/akelani-circle/mastra/tree/circle-payment-agent) (branch `circle-payment-agent`).

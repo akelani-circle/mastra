@@ -7,7 +7,7 @@ import type { RequestContext } from '@mastra/core/request-context';
 /** Where a caller's identity is read from. Our own front end sends exactly this. */
 export const IDENTITY_KEY = 'user-id';
 
-/** The caller Studio's own chat is attributed to. See `./studio`. */
+/** Named by `./studio`, since Studio has no field to send an identity in. */
 export const STUDIO_CALLER = 'studio';
 
 function resolveRoot(): string {
@@ -17,8 +17,7 @@ function resolveRoot(): string {
     mkdirSync(preferred, { recursive: true });
     return preferred;
   } catch {
-    // A container running as a UID with no passwd entry gets a `homedir()` it cannot write to.
-    // /tmp always works; a restart empties it and every tenant logs into Circle again.
+    // A container running as a UID with no passwd entry gets an unwritable `homedir()`.
     const fallback = join(tmpdir(), 'circle-agent-tenants');
     mkdirSync(fallback, { recursive: true });
     return fallback;
@@ -27,10 +26,7 @@ function resolveRoot(): string {
 
 const TENANT_ROOT = resolveRoot();
 
-/**
- * Thrown when a request arrives without an identity to attribute it to. There is no shared home to
- * fall back to — falling back is how every caller ends up spending one wallet.
- */
+/** No shared home to fall back to: falling back is how every caller ends up on one wallet. */
 export class MissingIdentityError extends Error {
   constructor() {
     super(
@@ -46,18 +42,13 @@ function safeSegment(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 64);
 }
 
-/** The home directory for this request, created if it does not exist yet. */
 export function tenantHome(requestContext?: RequestContext): string {
   const id = requestContext?.get(IDENTITY_KEY);
 
   return tenantHomeFor(typeof id === 'string' ? id : undefined);
 }
 
-/**
- * The same directory, for a caller named outright. The control-plane routes are plain HTTP
- * handlers with no `RequestContext` to read, and both paths have to agree about which directory a
- * caller owns — otherwise the wallet a route logs in is not the wallet the agent spends from.
- */
+/** For the control-plane routes, which are plain handlers with no `RequestContext` to read. */
 export function tenantHomeFor(id?: string): string {
   const segment = typeof id === 'string' ? safeSegment(id) : '';
 

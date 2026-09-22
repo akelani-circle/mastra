@@ -7,7 +7,7 @@
   "author": "akelani-circle",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/akelani-circle/mastra-circle-payment-agent.git"
+    "url": "git+https://github.com/akelani-circle/mastra.git"
   },
   "keywords": [
     "mastra",
